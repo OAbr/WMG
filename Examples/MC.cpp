@@ -43,9 +43,9 @@ double boundaryY(double y){
 double  w ( double x , double y )
 {
     //Example 1
-    /*double rho = (1+R*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) ) );
+    double rho = (1+R*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) ) );
     double w = 1/rho;
-    return   w ;*/
+    return   w ;
 
 
     //Example 2
@@ -59,14 +59,14 @@ double  w ( double x , double y )
     //double w = 1 + alpha*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w;
 
-    return 1;
+    //return 1;
 }
 
 //x-derivative of w
 double w_x(double x, double y)
 {
     //Example 1
-    //return -w(x,y)*w(x,y)*(-100*R*(x-x_c)*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) )  );
+    return -w(x,y)*w(x,y)*(-100*R*(x-x_c)*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) )  );
 
     //Example 2
     //return -w(x,y)*w(x,y)*(-20*pi*sin(20*pi*x)*sin(20*pi*y));
@@ -76,14 +76,14 @@ double w_x(double x, double y)
     //double w_x = alpha*( -2*R* ( y-0.5-0.25*sin(2*pi*x) )*(-0.5*pi*cos(2*pi*x)))*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w_x;
 
-    return 0;
+    //return 0;
 }
 
 //y-derivative of w
 double w_y(double x, double y)
 {
     //Example 1
-    //return -w(x,y)*w(x,y)*(-100*R*(y-y_c)*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) )  );
+    return -w(x,y)*w(x,y)*(-100*R*(y-y_c)*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) )  );
 
     //Example 2
     //return -w(x,y)*w(x,y)*(20*pi*cos(20*pi*x)*cos(20*pi*y));
@@ -93,7 +93,7 @@ double w_y(double x, double y)
     //double w_y = alpha*(-2*R* ( y-0.5-0.25*sin(2*pi*x) ))*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w_y;
 
-    return 0;
+    //return 0;
 }
 
 #define __FUNCT__ "rhoElement"
@@ -209,10 +209,10 @@ double getCoordY(int i, int size)
 int main(int argc, char** argv)
 {
     // initialize MPI, get size and processor number
-    MPI::Init(argc,argv);
-    MPI::Status status;
-    int size=MPI::COMM_WORLD.Get_size();
-    int my_id=MPI::COMM_WORLD.Get_rank();
+    MPI_Init(&argc,&argv);
+    MPI_Status status;
+    int size; MPI_Comm_size(MPI_COMM_WORLD, &size);
+    int my_id; MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
 
     // Creation of the MPI Data type XiEta
     int blocklengths[2] = {1,1};
@@ -227,7 +227,7 @@ int main(int argc, char** argv)
     MPI_Type_commit(&MPI_XiEta);
 
     // timing variables
-    double t5,t4,t3,t2,t1,t0;
+    double t6,t5,t4,t3,t2,t1,t0;
 
     // set up the geometry of the problem
     int subDomainX = atoi(argv[1]) ; int subDomainY = atoi(argv[2]) ; //number of subdomains along x and y diretions
@@ -392,7 +392,7 @@ int main(int argc, char** argv)
                     uvectsend[i*sizeX + j] = u[i][j];
                 }
             }
-            MPI::COMM_WORLD.Send(uvectsend,sizeX*sizeY,MPI_XiEta,0,1997+my_id);
+            MPI_Send(uvectsend,sizeX*sizeY,MPI_XiEta,0,1997+my_id, MPI_COMM_WORLD);
             delete [] uvectsend;
         }
 
@@ -401,7 +401,7 @@ int main(int argc, char** argv)
             XiEta * uvectrecv;
             uvectrecv = new XiEta[sizeX*sizeY];
             for (int r = 1; r < size; ++r){
-                MPI::COMM_WORLD.Recv(uvectrecv,sizeX*sizeY,MPI_XiEta,r,1997+r);
+                MPI_Recv(uvectrecv,sizeX*sizeY,MPI_XiEta,r,1997+r, MPI_COMM_WORLD, &status);
                 for (int i = 0; i <sizeY; ++i){
                     for (int j = 0; j < sizeX; ++j){
                         u[i][j].Xi =  u[i][j].Xi + uvectrecv[i*sizeX+j].Xi;
@@ -436,7 +436,7 @@ int main(int argc, char** argv)
             }
 
             for (int r = 1; r < size; ++r){
-                MPI::COMM_WORLD.Send(uvectsend,sizeX*sizeY,MPI_XiEta,r,1997+r);
+                MPI_Send(uvectsend,sizeX*sizeY,MPI_XiEta,r,1997+r, MPI_COMM_WORLD);
             }
             delete [] uvectsend;
         }
@@ -444,7 +444,7 @@ int main(int argc, char** argv)
         else{
             XiEta * uvectrecv;
             uvectrecv = new  XiEta[sizeX*sizeY];
-            MPI::COMM_WORLD.Recv(uvectrecv,sizeX*sizeY,MPI_XiEta,0,1997+my_id);
+            MPI_Recv(uvectrecv,sizeX*sizeY,MPI_XiEta,0,1997+my_id, MPI_COMM_WORLD, &status);
             for (int i = 0; i< sizeY; ++i){
                 for (int j = 0; j <sizeX; ++j){
                     u[i][j] =  uvectrecv[i*sizeX+j];
@@ -595,6 +595,13 @@ int main(int argc, char** argv)
     resXi = g.getPetscVectorToZero(g.globalXi);
     resEta = g.getPetscVectorToZero(g.globalEta);
 
+    g.destroy();
+
+    PetscFinalize();
+    MPI_Comm_free(&comm);
+
+    t4 = MPI_Wtime();
+
     // collecting the solutions for Xi and Eta to global node zero
     if (local_id == 0 && my_id!=0){
         XiEta * usend;
@@ -606,7 +613,7 @@ int main(int argc, char** argv)
             }
         }
 
-        MPI::COMM_WORLD.Send(usend,locsizeX*locsizeY,MPI_XiEta,0,1999);
+        MPI_Send(usend,locsizeX*locsizeY,MPI_XiEta,0,1999, MPI_COMM_WORLD);
         delete [] usend;
     }
     if (my_id == 0){
@@ -627,7 +634,7 @@ int main(int argc, char** argv)
             int subDomainIndexY = (sender_id/processorsPerCommunicator)%subDomainY + 1;
             //MPI_Recv(&urecv1[0][0],locsizeX*locsizeY,MPI::DOUBLE,k,1999,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
             std::cout<<"Receive from "<<sender_id<<std::endl;
-            MPI::COMM_WORLD.Recv(urecv1,locsizeX*locsizeY,MPI_XiEta,sender_id,1999);
+            MPI_Recv(urecv1,locsizeX*locsizeY,MPI_XiEta,sender_id,1999, MPI_COMM_WORLD, &status);
             //MPI::COMM_WORLD.Recv(&testrecv,1,MPI::DOUBLE,processorsPerCommunicator*k,1999);
             //std::cout<<"Received from "<<k<<":"<<std::endl;
             for(int i=0; i<locsizeY; ++i){
@@ -640,12 +647,7 @@ int main(int argc, char** argv)
         delete [] urecv1;
     }
 
-    g.destroy();
-
-    PetscFinalize();
-    MPI_Comm_free(&comm);
-
-    MPI::COMM_WORLD.Barrier();
+    MPI_Barrier(MPI_COMM_WORLD);
     //Calculate residual
 
     double **rXi = NULL, **rEta = NULL;
@@ -734,19 +736,19 @@ int main(int argc, char** argv)
         }
     }
 
-    MPI::COMM_WORLD.Barrier();
+    MPI_Barrier(MPI_COMM_WORLD);
     std::string str_id="_"+std::to_string(size)+"_"+std::to_string(subDomainX)+"_"
                         +std::to_string(subDomainY)+"_"+std::to_string(locsizeX)+"_"
                         +std::to_string(locsizeY)+"_"+std::to_string(interpolation_step)+"_"
                         +std::to_string(walks_per_processor);
 
-    t4 = MPI_Wtime();
+    t5 = MPI_Wtime();
 
     for (int i = 0 ; i < sizeY; ++i)
         delete []flag[i];
     delete []flag;
 
-    MPI::COMM_WORLD.Barrier();
+    MPI_Barrier(MPI_COMM_WORLD);
     // print residuals for Xi on file "rXi", residuals for Eta on file "rEta".
     if ((my_id == 0) && (print_residuals)){
         if (!calc_residuals)
@@ -819,7 +821,7 @@ int main(int argc, char** argv)
     }
 
     // printing timing
-    t5 = MPI_Wtime();
+    t6 = MPI_Wtime();
     if (my_id == 0)
     {
         std::ofstream outputFile3;
@@ -841,7 +843,8 @@ int main(int argc, char** argv)
         outputFile3<<"# Time: parallel part of Monte Carlo "<<std::endl<<t2-t1<<std::endl;
         outputFile3<<"# Time: send-receive of partial solution and computation of final average "<<std::endl<<t3-t2<<std::endl;
         outputFile3<<"# Time: petsc solver "<<std::endl<<t4-t3<<std::endl;
-        outputFile3<<"# Time: creation of output files "<<std::endl<<t5-t4<<std::endl;
+        outputFile3<<"# Time: collecting solutions and calculating residuals "<<std::endl<<t6-t5<<std::endl;
+        outputFile3<<"# Time: creation of output files "<<std::endl<<t6-t5<<std::endl;
         if (calc_residuals){
             outputFile3<<"# L2 norm residual: Xi"<<std::endl<<residualXi<<std::endl<<"# L2 norm residual: Eta"<<std::endl<<residualEta<<std::endl;
             outputFile3<<"# Maximum norm residual: Xi"<<std::endl<<residualXiMax<<std::endl<<"# Maximum norm residual: Eta"<<std::endl<<residualEtaMax<<std::endl;
@@ -850,7 +853,7 @@ int main(int argc, char** argv)
         outputFile3.close();
     }
 
-    MPI::Finalize();
+    MPI_Finalize();
     return 0;
 }
 #undef __FUNCT__
@@ -864,3 +867,4 @@ PetscErrorCode testRho(const WinslowMeshGenerator& g)
     return 0;
 }
 #undef __FUNCT__
+
