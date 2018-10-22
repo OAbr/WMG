@@ -23,10 +23,10 @@ struct XiEta{
 
 double pi = 3.14159265359;
 // global domain [a1, b1] x [a2, b2]
-double a1 = 0, b1 = 1, a2 = 0 , b2 = 1 ;
+double a1 = 0, b1 = 1, a2 = 0, b2 = 1;
 
 //parameters for example 1 of w
-double x_c = 0.75 ,y_c= 0.5 ;
+double x_c = 0.75, y_c = 0.5;
 double R = 15;
 #define min(x,y) (std::min(x,y))
 #define max(x,y) (std::max(x,y))
@@ -43,9 +43,9 @@ double boundaryY(double y){
 double  w ( double x , double y )
 {
     //Example 1
-    double rho = (1+R*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) ) );
-    double w = 1/rho;
-    return   w ;
+  //  double rho = (1+R*exp(-50*( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ));
+  //  double w = 1/rho;
+  //  return   w ;
 
 
     //Example 2
@@ -59,14 +59,14 @@ double  w ( double x , double y )
     //double w = 1 + alpha*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w;
 
-    //return 1;
+    return 1;
 }
 
 //x-derivative of w
 double w_x(double x, double y)
 {
     //Example 1
-    return -w(x,y)*w(x,y)*(-100*R*(x-x_c)*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) )  );
+    //return - w( x , y ) * w( x , y ) * ( -100 * R * ( x - x_c ) * exp( -50* ( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ) );
 
     //Example 2
     //return -w(x,y)*w(x,y)*(-20*pi*sin(20*pi*x)*sin(20*pi*y));
@@ -76,14 +76,14 @@ double w_x(double x, double y)
     //double w_x = alpha*( -2*R* ( y-0.5-0.25*sin(2*pi*x) )*(-0.5*pi*cos(2*pi*x)))*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w_x;
 
-    //return 0;
+    return 0;
 }
 
 //y-derivative of w
 double w_y(double x, double y)
 {
     //Example 1
-    return -w(x,y)*w(x,y)*(-100*R*(y-y_c)*exp(-50*(x-x_c)*(x-x_c) -50*(y-y_c)*(y-y_c) )  );
+    //return - w( x , y ) * w( x , y ) * ( -100 * R * ( y - y_c ) * exp( -50* ( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ) );
 
     //Example 2
     //return -w(x,y)*w(x,y)*(20*pi*cos(20*pi*x)*cos(20*pi*y));
@@ -93,7 +93,7 @@ double w_y(double x, double y)
     //double w_y = alpha*(-2*R* ( y-0.5-0.25*sin(2*pi*x) ))*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w_y;
 
-    //return 0;
+    return 0;
 }
 
 #define __FUNCT__ "rhoElement"
@@ -104,14 +104,15 @@ double rhoElement(double x, double y)
 #undef __FUNCT__
 
 //Monte Carlo code for computing the solution at the boundaries of the subdomains.
-XiEta ** MonteCarlo(double a1, double b1, double a2, double b2, int sizeX, int sizeY,
+XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
                     double lx, double ly, double h , int walks, int my_id,
-                    int ** flag, int interpolation_step)
+                    int ** flag)
 {
-    double sh = sqrt(2*h);
+    double sh = sqrt(2*h), delta_x, delta_y, coeff;
     std::mt19937 generator ; //object Mersienne Twisted generator.
-    std::normal_distribution<long double> distribution(0,1) ; //Standard Normal distribution.
-
+    std::normal_distribution<double> n_distribution(0.0,1.0) ; //Standard Normal distribution.
+    std::uniform_real_distribution<double> u_distribution(0.0,1.0); //Uniform distribution
+    generator.seed( my_id * walks );
     // u is the solution, originally set up to be zero.
     XiEta ** u;
 
@@ -125,7 +126,7 @@ XiEta ** MonteCarlo(double a1, double b1, double a2, double b2, int sizeX, int s
 
     //Now application of Feynmann Kak formula or interpolation
 
-    double x0, y0; double x,y;
+    double x0 , y0 , x , y , x_new , y_new , u_x , u_y ;
 
     // flag = -1 : set up the values at the boundary points, using the boundary functions
     // boundaryX and boundaryY
@@ -139,22 +140,90 @@ XiEta ** MonteCarlo(double a1, double b1, double a2, double b2, int sizeX, int s
             }
 
     // flag = 1: do Monte Carlo at the interface points that are flagged as 1
-    for (int i = 0 ; i < sizeY; i++)
-        for (int j = 0 ; j < sizeX; j++)
+    for (int i = 1 ; i < sizeY -1; i++)
+        for (int j = 1 ; j < sizeX - 1; j++)
             if(flag[i][j] == 1)
             {
-                x0 = a1+j*lx ;
-                y0 = a2+i*ly ;
+                x0 = a1 + j * lx ;
+                y0 = a2 + i * ly ;
                 //if (my_id == 0){std::cout<<x0<<" "<<y0<<std::endl;}
                 for (int t = 0 ; t < walks; t++){
-                    generator.seed(t+my_id*walks);x = x0 ; y = y0 ;
-                    while ( x>a1 && x<b1 && y>a2 && y<b2 ){
+                    //generator.seed( t + my_id * walks );
+                    x_new = x0 ; y_new = y0 ;
+                    delta_x = 0; delta_y = 0;
+                    while ( true ){
+  		                  x = x_new ; y = y_new ;
                         //if (my_id == 0){std::cout<<"Doing Monte Carlo"<<std::endl;}
-                        x += (w_x(x,y)*h)/(w(x,y)) + sh * distribution(generator); //if (my_id == 0) {std::cout<<stepsx[t][m]<<std::endl;}
-                        y += (w_y(x,y)*h)/(w(x,y)) + sh * distribution(generator);
+                        delta_x = (w_x(x,y)*h)/(w(x,y)) + sh * n_distribution(generator); //if (my_id == 0) {std::cout<<stepsx[t][m]<<std::endl;}
+                        delta_y = (w_y(x,y)*h)/(w(x,y)) + sh * n_distribution(generator);
+                        //delta_x = w_x( x , y ) * h + sh * sqrt( w(x,y) ) * n_distribution(generator);
+                        //delta_y = w_y( x , y ) * h + sh * sqrt( w(x,y) ) * n_distribution(generator);
                         /*x += w_x(x,y)*h + stepsx[t][m] * sqrt(w(x,y)); //if (my_id == 0) {std::cout<<stepsx[t][m]<<std::endl;}
                               y += w_y(x,y)*h + stepsy[t][m] * sqrt(w(x,y));*/
-                        } //while not boundary
+                        //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "Adjusting point( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
+
+                        if( x + delta_x < a1 )
+                        {
+                          coeff = ( a1 - x ) / delta_x ;
+                          delta_x *= coeff ; delta_y *= coeff ;
+                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Left boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
+                        }
+                        if( x + delta_x > b1 )
+                        {
+                          coeff = ( b1 - x ) / delta_x ;
+                          delta_x *= coeff ; delta_y *= coeff ;
+                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Right boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
+                        }
+
+                        if( y + delta_y < a2 )
+                        {
+                          coeff = ( a2 - y ) / delta_y ;
+                          delta_x *= coeff ; delta_y *= coeff ;
+                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Bottom boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
+                        }
+                        if( y + delta_y > b2 )
+                        {
+                          coeff = ( b2 - y ) / delta_y ;
+                          delta_x *= coeff ; delta_y *= coeff ;
+                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Top boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
+                        }
+
+                        x_new += delta_x ; y_new += delta_y ;
+
+                        u_x = u_distribution(generator);
+                        u_y = u_distribution(generator);
+
+                        if( u_x < exp( ( x_new - a1 ) * ( a1 - x ) / ( 2 * h * h ) ) )
+                        {
+                          x = a1 ;
+                          y = y_new ;//y = ...
+                          break;
+                        }
+
+                        if( u_x < exp( ( x_new - b1 ) * ( b1 - x ) / ( 2 * h * h ) ) )
+                        {
+                          x = b1 ;
+                          y = y_new ;//y = ...
+                          break;
+                        }
+
+                        if( u_y < exp( ( y_new - a2 ) * ( a2 - y ) / ( 2 * h * h ) ) )
+                        {
+                          y = a2 ;
+                          x = x_new ;//x = ...
+                          break;
+                        }
+
+                        if( u_y < exp( ( y_new - b2 ) * ( b2 - y ) / ( 2 * h * h ) ) )
+                        {
+                          y = b2 ;
+                          x = x_new ;//x = ...
+                          break;
+                        }
+
+                    }
+
+                    //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, " Final values( x: %g, y: %g):\n Boundaries: Xi: %g, Eta: %g\n", x , y , boundaryX(x), boundaryY(y) ));
 
                     u[i][j].Xi = u[i][j].Xi + boundaryX(x) ;
                     u[i][j].Eta = u[i][j].Eta + boundaryY(y) ;
@@ -165,29 +234,51 @@ XiEta ** MonteCarlo(double a1, double b1, double a2, double b2, int sizeX, int s
                 u[i][j].Eta /= walks ;
             }
 
-    for (int i = 0 ; i < sizeY; i++)
-        for (int j = 0 ; j < sizeX; j++)
-            switch(flag[i][j])
+    // Horizontal interpolation
+    for (int i = locsizeY-1; i < sizeY-1; i += locsizeY-1)
+    {
+        int previous_point = 0;
+        int j, k;
+        for (j=1; j < sizeX-1; ++j)
+            if (flag[i][j]==1)
             {
-                case  2: {// flag = 2 : interpolation along horizontal segments
-                    int j0 = j - j % (interpolation_step);
-                    int j1 = j0 + (interpolation_step);
-                    if (j1 > sizeX-1){j1 = sizeX-1;}
-                    double A = j0; double B = j1;
-                    u[i][j].Xi = u[i][j0].Xi + ((u[i][j1].Xi - u[i][j0].Xi) / (B-A)) * (j % interpolation_step);
-                    u[i][j].Eta = u[i][j0].Eta + ((u[i][j1].Eta - u[i][j0].Eta) / (B-A)) * (j % interpolation_step);
-                    break;
+                for (k=1; k<j-previous_point; ++k)
+                {
+                    u[i][previous_point+k].Xi = u[i][previous_point].Xi + (u[i][j].Xi-u[i][previous_point].Xi)*k/(j-previous_point);
+                    u[i][previous_point+k].Eta = u[i][previous_point].Eta + (u[i][j].Eta-u[i][previous_point].Eta)*k/(j-previous_point);
                 }
-                case  3: {// flag = 3 : interpolation along vertical segments
-                    int i0 = i - i % (interpolation_step);
-                    int i1 = i0 + (interpolation_step);
-                    if (i1 > sizeY-1){i1 = sizeY-1;}
-                    double C = i0; double D = i1;
-                    u[i][j].Xi = u[i0][j].Xi + ((u[i1][j].Xi - u[i0][j].Xi) / (D-C)) * (i % interpolation_step);
-                    u[i][j].Eta = u[i0][j].Eta + ((u[i1][j].Eta - u[i0][j].Eta) / (D-C)) * (i % interpolation_step);
-                    break;
-                }
+                previous_point = j;
             }
+        j = sizeX-1;
+        for (k=1; k<j-previous_point; ++k)
+        {
+            u[i][previous_point+k].Xi = u[i][previous_point].Xi + (u[i][j].Xi-u[i][previous_point].Xi)*k/(j-previous_point);
+            u[i][previous_point+k].Eta = u[i][previous_point].Eta + (u[i][j].Eta-u[i][previous_point].Eta)*k/(j-previous_point);
+        }
+    }
+
+    //Vertical interpolation
+    for (int j = locsizeX-1; j < sizeX-1; j += locsizeX-1)
+    {
+        int previous_point = 0;
+        int i, k;
+        for (i=1; i < sizeY-1; ++i)
+            if (flag[i][j]==1)
+            {
+                for (k=1; k<i-previous_point; ++k)
+                {
+                    u[previous_point+k][j].Xi = u[previous_point][j].Xi + (u[i][j].Xi-u[previous_point][j].Xi)*k/(i-previous_point);
+                    u[previous_point+k][j].Eta = u[previous_point][j].Eta + (u[i][j].Eta-u[previous_point][j].Eta)*k/(i-previous_point);
+                }
+                previous_point = i;
+            }
+        i = sizeX-1;
+        for (k=1; k<i-previous_point; ++k)
+        {
+            u[previous_point+k][j].Xi = u[previous_point][j].Xi + (u[i][j].Xi-u[previous_point][j].Xi)*k/(i-previous_point);
+            u[previous_point+k][j].Eta = u[previous_point][j].Eta + (u[i][j].Eta-u[previous_point][j].Eta)*k/(i-previous_point);
+        }
+    }
 
     return u ;
 }
@@ -269,12 +360,16 @@ int main(int argc, char** argv)
     CHKERRMY(PetscOptionsGetInt(NULL,NULL,"-random_walks",&walks_per_processor,NULL));
 
     // interpolation step
-    int interpolation_step = sqrt(min(sizeX, sizeY));
+    int interpolation_step = 1;
     CHKERRMY(PetscOptionsGetInt(NULL,NULL,"-interpolation_step",&interpolation_step,NULL));
 
     // Monte Carlo time step
     double time_step = 1.0 / sqrt(walks_per_processor);
     CHKERRMY(PetscOptionsGetReal(NULL,NULL,"-time_step",&time_step,NULL));
+
+    // interpolation method flag
+    PetscBool adaptiveInterpolation = PETSC_FALSE;
+    CHKERRMY(PetscOptionsGetBool(NULL,NULL,"-adaptive_interpolation",&adaptiveInterpolation,NULL));
 
     // print results flag
     PetscBool print_results = PETSC_TRUE;
@@ -315,40 +410,199 @@ int main(int argc, char** argv)
 
     //Horizontal interfaces
     if (subDomainY != 1){
-        for (int i = locsizeY-1; i < sizeY-1; i += locsizeY-1)
-            for (int j = 1; j < sizeX-1; ++j)
-                if (j % interpolation_step) flag[i][j] = 2;
-                else flag[i][j] = 1;
+        if(adaptiveInterpolation)
+        {
+            // temporary interpolation points
+            int previous_point, internal_point;
+            //physical coords
+            double x_tmp, y_tmp;
+            // temporary density values;
+            double f_x, f_x_left, f_x_right;
+            // interpolation flag
+            bool interpol;
+            // iterators
+            int i, j, k;
+            for (i = locsizeY-1; i < sizeY-1; i += locsizeY-1)
+            {
+                // left boundary point treated as the first minmax
+                previous_point = 0;
+                // y coord for horizontal interface
+                y_tmp = a2+i*sizeofintervalY;
+                for (j = 1; j < sizeX-1; ++j)
+                {
+                    // x coord of the current point
+                    x_tmp = a1+j*sizeofintervalX;
+                    // start to check if we wont to run Monte Carlo for this point
+                    interpol = false;
+                    f_x = 1.0/w(x_tmp, y_tmp);
+                    f_x_left = 1.0/w(x_tmp-sizeofintervalX, y_tmp);
+                    f_x_right = 1.0/w(x_tmp+sizeofintervalX, y_tmp);
+                    // check for mesh density minmax points
+                    if ((f_x - f_x_left)*(f_x_right-f_x) <= 0)
+                    {
+                        if ((fabs(f_x - f_x_left)>0) || (fabs(f_x_right-f_x)>0))
+                        {
+                            //if(my_id == 0) printf("%i %i %f %f %f\n", i, j, f_x_left, f_x, f_x_right);
+                            interpol = true;
+                        }
+                    }
+                    else
+                    {
+                        // check for the derivative of mesh density minmax points
+                        f_x = -w_x(x_tmp, y_tmp)*f_x*f_x;
+                        f_x_left = -w_x(x_tmp-sizeofintervalX, y_tmp)*f_x_left*f_x_left;
+                        f_x_right = -w_x(x_tmp+sizeofintervalX, y_tmp)*f_x_right*f_x_right;
+                        if ((f_x - f_x_left)*(f_x_right-f_x) <= 0)
+                        {
+                            if ((fabs(f_x - f_x_left)>0) || (fabs(f_x_right-f_x)>0))
+                            {
+                                //if(my_id == 0) printf("%i %i %f %f %f\n", i, j, f_x_left, f_x, f_x_right);
+                                interpol = true;
+                            }
+                        }
+                    }
+
+                    if (interpol)
+                    {
+                        // mark a point for calculation
+                        flag[i][j] = 1;
+                        // mark additional internal points for calculation
+                        for(k = 1; k <= interpolation_step; ++k)
+                        {
+                            internal_point = previous_point + round(double(j - previous_point)*k/(interpolation_step+1));
+                            flag[i][internal_point] = 1;
+                        }
+                        // update the last minmax point
+                        previous_point = j;
+                    }
+                    else flag[i][j] = 2;
+                }
+                // do the same for the last point and right boundary
+                j = sizeX-1;
+                for(k = 1; k <= interpolation_step; ++k)
+                {
+                    internal_point = previous_point + round(double(j - previous_point)*k/(interpolation_step+1));
+                    if ( internal_point < j ) flag[i][internal_point] = 1;
+                }
+            }
+        }
+        else
+        {
+            for (int i = locsizeY-1; i < sizeY-1; i += locsizeY-1)
+                for (int j = 1; j < sizeX-1; ++j)
+                    if (j % interpolation_step) flag[i][j] = 2;
+                    else flag[i][j] = 1;
+        }
     }
 
     //Vertical interfaces
     if (subDomainX != 1){
-        for (int i = 1; i < sizeY-1; ++i)
-            for (int j = locsizeX-1; j < sizeX-1; j += locsizeX-1)
-                if (i % interpolation_step) {
-                    if (flag[i][j] != 1) flag[i][j] = 3;
+        if(adaptiveInterpolation)
+        {
+            // temporary interpolation points
+            int previous_point, internal_point;
+            //physical coords
+            double x_tmp, y_tmp;
+            // temporary density values;
+            double f_y, f_y_bottom, f_y_top;
+            // interpolation flag
+            bool interpol;
+            // iterators
+            int i, j, k;
+            for (j = locsizeX-1; j < sizeX-1; j += locsizeX-1)
+            {
+                // bottom boundary point treated as the first minmax
+                previous_point = 0;
+                // x coord of the current point
+                x_tmp = a1+j*sizeofintervalX;
+                for (i = 1; i < sizeY-1; ++i)
+                {
+                    // y coord for horizontal interface
+                    y_tmp = a2+i*sizeofintervalY;
+                    // start to check if we wont to run Monte Carlo for this point
+                    interpol = false;
+                    f_y = 1.0/w(x_tmp, y_tmp);
+                    f_y_bottom = 1.0/w(x_tmp, y_tmp-sizeofintervalY);
+                    f_y_top = 1.0/w(x_tmp, y_tmp+sizeofintervalY);
+                    // check for mesh density minmax points
+                    if ((f_y - f_y_bottom)*(f_y_top-f_y)<=0)
+                    {
+                        if ((fabs(f_y - f_y_bottom)>0) || (fabs(f_y_top-f_y)>0))
+                        {
+                            //if(my_id == 0) printf("%i %i %f %f %f\n", i, j, f_y_bottom, f_y, f_y_top);
+                            interpol = true;
+                        }
+                    }
+                    else
+                    {
+                        // check for the derivative of mesh density minmax points
+                        f_y = -w_y(x_tmp, y_tmp)*f_y*f_y;
+                        f_y_bottom = -w_y(x_tmp, y_tmp-sizeofintervalY)*f_y_bottom*f_y_bottom;
+                        f_y_top = -w_y(x_tmp, y_tmp+sizeofintervalY)*f_y_top*f_y_top;
+                        if ((f_y - f_y_bottom)*(f_y_top-f_y)<=0)
+                        {
+                            if ((fabs(f_y - f_y_bottom)>0) || (fabs(f_y_top-f_y)>0))
+                            {
+                                //if(my_id == 0) printf("%i %i %f %f %f\n", i, j, f_y_bottom, f_y, f_y_top);
+                                interpol = true;
+                            }
+                        }
+                    }
+
+                    if (interpol)
+                    {
+                        // mark a point for calculation
+                        flag[i][j] = 1;
+                        // mark additional internal points for calculation
+                        for(k = 1; k <= interpolation_step; ++k)
+                        {
+                            internal_point = previous_point + round(double(i - previous_point)*k/(interpolation_step+1));
+                            flag[internal_point][j] = 1;
+                        }
+                        // update the last minmax point
+                        previous_point = i;
+                    }
+                    else flag[i][j] = 3;
                 }
-                else flag[i][j] = 1;
+                // do the same for the last point and right boundary
+                i = sizeY-1;
+                for(k = 1; k <= interpolation_step; ++k)
+                {
+                    internal_point = previous_point + round(double(i - previous_point)*k/(interpolation_step+1));
+                    if ( internal_point < i ) flag[internal_point][j] = 1;
+                }
+            }
+        }
+        else
+        {
+            for (int i = 1; i < sizeY-1; ++i)
+                for (int j = locsizeX-1; j < sizeX-1; j += locsizeX-1)
+                    if (i % interpolation_step) {
+                        if (flag[i][j] != 1) flag[i][j] = 3;
+                    }
+                    else flag[i][j] = 1;
+        }
     }
 
     //print out the flag values to make sure they are correct and to know what is done at each point
-    /*if (my_id == 0){
+    if (my_id == 0){
         std::cout<<"Flags: -1 = Boundary Conditions, 0 = Subsolver 1 = Montecarlo, 2 = Horizontal interpolation, 3 = Vertical interpolation"<<std::endl;
         for (int i = 0 ; i < sizeY; ++i){
             for (int j = 0 ; j < sizeX; ++j)
                 std::cout<<flag[i][j]<<" ";
             std::cout<<" "<<std::endl;
         }
-    }*/
+    }
 
+    MPI_Barrier(MPI_COMM_WORLD);
     //now we call the MonteCarlo function
     t1 = MPI_Wtime();
 
     XiEta ** u; //the solution
 
     if (totalSubDomains > 1) {
-        u = MonteCarlo(a1, b1, a2, b2, sizeX, sizeY, sizeofintervalX, sizeofintervalY,
-                       time_step, walks_per_processor/size, my_id, flag, interpolation_step);
+        u = MonteCarlo(sizeX, sizeY, locsizeX, locsizeY, sizeofintervalX, sizeofintervalY,
+                       time_step, walks_per_processor/size, my_id, flag);
     }
     else
     {
@@ -738,9 +992,9 @@ int main(int argc, char** argv)
 
     MPI_Barrier(MPI_COMM_WORLD);
     std::string str_id="_"+std::to_string(size)+"_"+std::to_string(subDomainX)+"_"
-                        +std::to_string(subDomainY)+"_"+std::to_string(locsizeX)+"_"
-                        +std::to_string(locsizeY)+"_"+std::to_string(interpolation_step)+"_"
-                        +std::to_string(walks_per_processor);
+            +std::to_string(subDomainY)+"_"+std::to_string(locsizeX)+"_"
+            +std::to_string(locsizeY)+"_"+std::to_string(interpolation_step)+"_"
+            +std::to_string(walks_per_processor);
 
     t5 = MPI_Wtime();
 
@@ -867,4 +1121,3 @@ PetscErrorCode testRho(const WinslowMeshGenerator& g)
     return 0;
 }
 #undef __FUNCT__
-
