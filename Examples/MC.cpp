@@ -43,9 +43,9 @@ double boundaryY(double y){
 double  w ( double x , double y )
 {
     //Example 1
-  //  double rho = (1+R*exp(-50*( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ));
-  //  double w = 1/rho;
-  //  return   w ;
+    double rho = (1+R*exp(-50*( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ));
+    double w = 1/rho;
+    return w ;
 
 
     //Example 2
@@ -59,14 +59,14 @@ double  w ( double x , double y )
     //double w = 1 + alpha*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w;
 
-    return 1;
+    //return 1;
 }
 
 //x-derivative of w
 double w_x(double x, double y)
 {
     //Example 1
-    //return - w( x , y ) * w( x , y ) * ( -100 * R * ( x - x_c ) * exp( -50* ( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ) );
+    return - w( x , y ) * w( x , y ) * ( -100 * R * ( x - x_c ) * exp( -50* ( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ) );
 
     //Example 2
     //return -w(x,y)*w(x,y)*(-20*pi*sin(20*pi*x)*sin(20*pi*y));
@@ -76,14 +76,14 @@ double w_x(double x, double y)
     //double w_x = alpha*( -2*R* ( y-0.5-0.25*sin(2*pi*x) )*(-0.5*pi*cos(2*pi*x)))*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w_x;
 
-    return 0;
+    //return 0;
 }
 
 //y-derivative of w
 double w_y(double x, double y)
 {
     //Example 1
-    //return - w( x , y ) * w( x , y ) * ( -100 * R * ( y - y_c ) * exp( -50* ( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ) );
+    return - w( x , y ) * w( x , y ) * ( -100 * R * ( y - y_c ) * exp( -50* ( ( x - x_c ) * ( x - x_c ) + ( y - y_c ) * ( y - y_c ) ) ) );
 
     //Example 2
     //return -w(x,y)*w(x,y)*(20*pi*cos(20*pi*x)*cos(20*pi*y));
@@ -93,7 +93,7 @@ double w_y(double x, double y)
     //double w_y = alpha*(-2*R* ( y-0.5-0.25*sin(2*pi*x) ))*exp(-R*(y-0.5-0.25*sin(2*pi*x))*(y-0.5-0.25*sin(2*pi*x)));
     //return w_y;
 
-    return 0;
+    //return 0;
 }
 
 #define __FUNCT__ "rhoElement"
@@ -108,14 +108,13 @@ XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
                     double lx, double ly, double h , int walks, int my_id,
                     int ** flag)
 {
-    double sh = sqrt(2*h), delta_x, delta_y, coeff;
+    double sh = sqrt( 2 * h ), delta_x , delta_y , coeff ;
     std::mt19937 generator ; //object Mersienne Twisted generator.
     std::normal_distribution<double> n_distribution(0.0,1.0) ; //Standard Normal distribution.
     std::uniform_real_distribution<double> u_distribution(0.0,1.0); //Uniform distribution
     generator.seed( my_id * walks );
     // u is the solution, originally set up to be zero.
     XiEta ** u;
-
     u = new XiEta*[sizeY];
     for (int i = 0; i < sizeY; ++i){
         u[i] = new XiEta[sizeX];
@@ -125,96 +124,88 @@ XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
     }
 
     //Now application of Feynmann Kak formula or interpolation
-
     double x0 , y0 , x , y , x_new , y_new , u_x , u_y ;
 
     // flag = -1 : set up the values at the boundary points, using the boundary functions
     // boundaryX and boundaryY
-    for (int i = 0 ; i < sizeY; i++)
-        for (int j = 0 ; j < sizeX; j++)
+    for (int i = 0 ; i < sizeY ; ++i)
+        for (int j = 0 ; j < sizeX ; ++j)
             if(flag[i][j] == -1)
             {
-                x0 = a1+j*lx ; y0 = a2+i*ly ;
-                u[i][j].Xi = boundaryX(x0);
-                u[i][j].Eta = boundaryY(y0);
+                x0 = a1 + j * lx ; y0 = a2 + i * ly ;
+                u[i][j].Xi = boundaryX( x0 );
+                u[i][j].Eta = boundaryY( y0 );
             }
 
     // flag = 1: do Monte Carlo at the interface points that are flagged as 1
-    for (int i = 1 ; i < sizeY -1; i++)
-        for (int j = 1 ; j < sizeX - 1; j++)
-            if(flag[i][j] == 1)
+    for (int i = 1 ; i < sizeY -1 ; ++i)
+        for (int j = 1 ; j < sizeX - 1 ; ++j)
+            if( flag[i][j] == 1 )
             {
                 x0 = a1 + j * lx ;
                 y0 = a2 + i * ly ;
-                //if (my_id == 0){std::cout<<x0<<" "<<y0<<std::endl;}
-                for (int t = 0 ; t < walks; t++){
-                    //generator.seed( t + my_id * walks );
+                for (int t = 0 ; t < walks ; ++t){
                     x_new = x0 ; y_new = y0 ;
                     delta_x = 0; delta_y = 0;
                     while ( true ){
   		                  x = x_new ; y = y_new ;
-                        //if (my_id == 0){std::cout<<"Doing Monte Carlo"<<std::endl;}
-                        delta_x = (w_x(x,y)*h)/(w(x,y)) + sh * n_distribution(generator); //if (my_id == 0) {std::cout<<stepsx[t][m]<<std::endl;}
-                        delta_y = (w_y(x,y)*h)/(w(x,y)) + sh * n_distribution(generator);
+                        delta_x = w_x( x , y ) * h / w( x , y ) + sh * n_distribution( generator );
+                        delta_y = w_y( x , y ) * h / w( x , y ) + sh * n_distribution( generator );
+                        // Alternative formula
                         //delta_x = w_x( x , y ) * h + sh * sqrt( w(x,y) ) * n_distribution(generator);
                         //delta_y = w_y( x , y ) * h + sh * sqrt( w(x,y) ) * n_distribution(generator);
-                        /*x += w_x(x,y)*h + stepsx[t][m] * sqrt(w(x,y)); //if (my_id == 0) {std::cout<<stepsx[t][m]<<std::endl;}
-                              y += w_y(x,y)*h + stepsy[t][m] * sqrt(w(x,y));*/
-                        //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "Adjusting point( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
 
+                        // Find boundary intersections
                         if( x + delta_x < a1 )
                         {
                           coeff = ( a1 - x ) / delta_x ;
                           delta_x *= coeff ; delta_y *= coeff ;
-                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Left boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
                         }
                         if( x + delta_x > b1 )
                         {
                           coeff = ( b1 - x ) / delta_x ;
                           delta_x *= coeff ; delta_y *= coeff ;
-                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Right boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
                         }
 
                         if( y + delta_y < a2 )
                         {
                           coeff = ( a2 - y ) / delta_y ;
                           delta_x *= coeff ; delta_y *= coeff ;
-                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Bottom boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
                         }
                         if( y + delta_y > b2 )
                         {
                           coeff = ( b2 - y ) / delta_y ;
                           delta_x *= coeff ; delta_y *= coeff ;
-                          //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, "  Top boundary( x: %g, delta_x: %g, y: %g, delta_y: %g):\n", x , delta_x , y , delta_y ));
                         }
 
                         x_new += delta_x ; y_new += delta_y ;
 
-                        u_x = u_distribution(generator);
-                        u_y = u_distribution(generator);
-
-                        if( u_x < exp( ( x_new - a1 ) * ( a1 - x ) / ( 2 * h * h ) ) )
+                        // Check leave and return case
+                        u_x = u_distribution( generator );
+                        u_y = u_distribution( generator );
+                        // x_new or y_new on the boundary also cuses break
+                        if( u_x < exp( ( x_new - a1 ) * ( a1 - x ) /  h ) )
                         {
                           x = a1 ;
                           y = y_new ;//y = ...
                           break;
                         }
 
-                        if( u_x < exp( ( x_new - b1 ) * ( b1 - x ) / ( 2 * h * h ) ) )
+                        if( u_x < exp( ( x_new - b1 ) * ( b1 - x ) / h ) )
                         {
                           x = b1 ;
                           y = y_new ;//y = ...
                           break;
                         }
 
-                        if( u_y < exp( ( y_new - a2 ) * ( a2 - y ) / ( 2 * h * h ) ) )
+                        if( u_y < exp( ( y_new - a2 ) * ( a2 - y ) / h ) )
                         {
                           y = a2 ;
                           x = x_new ;//x = ...
                           break;
                         }
 
-                        if( u_y < exp( ( y_new - b2 ) * ( b2 - y ) / ( 2 * h * h ) ) )
+                        if( u_y < exp( ( y_new - b2 ) * ( b2 - y ) / h ) )
                         {
                           y = b2 ;
                           x = x_new ;//x = ...
@@ -223,8 +214,7 @@ XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
 
                     }
 
-                    //CHKERRMY(PetscPrintf(PETSC_COMM_WORLD, " Final values( x: %g, y: %g):\n Boundaries: Xi: %g, Eta: %g\n", x , y , boundaryX(x), boundaryY(y) ));
-
+                    // Save simulation result
                     u[i][j].Xi = u[i][j].Xi + boundaryX(x) ;
                     u[i][j].Eta = u[i][j].Eta + boundaryY(y) ;
                     //if (warning > maxsteps ){std::cout<<"Warning: m ="<<warning<<" for walk number "<<t<<std::endl;} //warn the user that a walk exceeded maxsteps
@@ -239,10 +229,10 @@ XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
     {
         int previous_point = 0;
         int j, k;
-        for (j=1; j < sizeX-1; ++j)
+        for ( j = 1 ; j < sizeX - 1 ; ++j)
             if (flag[i][j]==1)
             {
-                for (k=1; k<j-previous_point; ++k)
+                for ( k = 1 ; k < j - previous_point ; ++k)
                 {
                     u[i][previous_point+k].Xi = u[i][previous_point].Xi + (u[i][j].Xi-u[i][previous_point].Xi)*k/(j-previous_point);
                     u[i][previous_point+k].Eta = u[i][previous_point].Eta + (u[i][j].Eta-u[i][previous_point].Eta)*k/(j-previous_point);
@@ -250,7 +240,7 @@ XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
                 previous_point = j;
             }
         j = sizeX-1;
-        for (k=1; k<j-previous_point; ++k)
+        for ( k = 1 ; k < j - previous_point ; ++k)
         {
             u[i][previous_point+k].Xi = u[i][previous_point].Xi + (u[i][j].Xi-u[i][previous_point].Xi)*k/(j-previous_point);
             u[i][previous_point+k].Eta = u[i][previous_point].Eta + (u[i][j].Eta-u[i][previous_point].Eta)*k/(j-previous_point);
@@ -601,6 +591,7 @@ int main(int argc, char** argv)
     XiEta ** u; //the solution
 
     if (totalSubDomains > 1) {
+        if ( my_id == 0 ){std::cout<<"Doing Monte Carlo"<<std::endl;}
         u = MonteCarlo(sizeX, sizeY, locsizeX, locsizeY, sizeofintervalX, sizeofintervalY,
                        time_step, walks_per_processor/size, my_id, flag);
     }
