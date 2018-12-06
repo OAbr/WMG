@@ -9,7 +9,9 @@
 #include <random>
 #include <stdio.h>
 #include <chrono>
-#include <winslow_mesh_generator.h>
+#include <vector>
+#include "spline.h"
+#include "winslow_mesh_generator.h"
 
 PetscErrorCode testRho(const WinslowMeshGenerator& g);
 void SetPetscVector(Vec &pVec, double *cVec, int size, int vBegin, int vEnd);
@@ -225,7 +227,7 @@ XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
             }
 
     // Horizontal interpolation
-    for (int i = locsizeY-1; i < sizeY-1; i += locsizeY-1)
+    /*for (int i = locsizeY-1; i < sizeY-1; i += locsizeY-1)
     {
         int previous_point = 0;
         int j, k;
@@ -268,7 +270,7 @@ XiEta ** MonteCarlo(int sizeX, int sizeY, int locsizeX, int locsizeY,
             u[previous_point+k][j].Xi = u[previous_point][j].Xi + (u[i][j].Xi-u[previous_point][j].Xi)*k/(i-previous_point);
             u[previous_point+k][j].Eta = u[previous_point][j].Eta + (u[i][j].Eta-u[previous_point][j].Eta)*k/(i-previous_point);
         }
-    }
+    }*/
 
     return u ;
 }
@@ -575,14 +577,14 @@ int main(int argc, char** argv)
     }
 
     //print out the flag values to make sure they are correct and to know what is done at each point
-    if (my_id == 0){
+    /*if (my_id == 0){
         std::cout<<"Flags: -1 = Boundary Conditions, 0 = Subsolver 1 = Montecarlo, 2 = Horizontal interpolation, 3 = Vertical interpolation"<<std::endl;
         for (int i = 0 ; i < sizeY; ++i){
             for (int j = 0 ; j < sizeX; ++j)
                 std::cout<<flag[i][j]<<" ";
             std::cout<<" "<<std::endl;
         }
-    }
+    }*/
 
     MPI_Barrier(MPI_COMM_WORLD);
     //now we call the MonteCarlo function
@@ -663,6 +665,84 @@ int main(int argc, char** argv)
                     u[i][j].Eta /= size;
                     //std::cout<<r<<" "<<urecv[i][j].Xi<<" "<<u[i][j].Xi<<std::endl;
                 }
+            }
+
+            //spline interpolation
+            tk::spline spline_xi , spline_eta ;
+            double val_tmp;
+
+            // Horizontal interpolation
+            for (int i = locsizeY - 1 ; i < sizeY - 1 ; i += locsizeY - 1 )
+            {
+              std::vector<double> spline_arg , spline_val_xi , spline_val_eta ;
+              val_tmp = a1 ; int j = 0 ;
+              spline_arg.push_back( val_tmp );
+              spline_val_xi.push_back( u[i][j].Xi );
+              spline_val_eta.push_back( u[i][j].Eta );
+              for ( j = 1 ; j < sizeX - 1 ; ++j )
+              {
+                if ( flag[i][j] == 1 )
+                {
+                  val_tmp = a1 + j * sizeofintervalX ;
+                  spline_arg.push_back( val_tmp );
+                  spline_val_xi.push_back( u[i][j].Xi );
+                  spline_val_eta.push_back( u[i][j].Eta );
+                }
+              }
+              val_tmp = b1 ; j = sizeX - 1 ;
+              spline_arg.push_back( val_tmp );
+              spline_val_xi.push_back( u[i][j].Xi );
+              spline_val_eta.push_back( u[i][j].Eta );
+
+              spline_xi.set_points( spline_arg , spline_val_xi );
+              spline_eta.set_points( spline_arg , spline_val_eta );
+
+              for (int j = 1 ; j < sizeX - 1 ; ++j )
+              {
+                if( flag[i][j] != 1)
+                {
+                  val_tmp = a1 + j * sizeofintervalX ;
+                  u[i][j].Xi = spline_xi( val_tmp );
+                  u[i][j].Eta = spline_eta( val_tmp );
+                }
+              }
+            }
+
+            // Vertical interpolation
+            for (int j = locsizeX - 1 ; j < sizeX - 1 ; j += locsizeX - 1 )
+            {
+              std::vector<double> spline_arg , spline_val_xi , spline_val_eta ;
+              val_tmp = a2 ; int i = 0 ;
+              spline_arg.push_back( val_tmp );
+              spline_val_xi.push_back( u[i][j].Xi );
+              spline_val_eta.push_back( u[i][j].Eta );
+              for ( i = 1 ; i < sizeY - 1 ; ++i )
+              {
+                if ( flag[i][j] == 1 )
+                {
+                  val_tmp = a2 + i * sizeofintervalY ;
+                  spline_arg.push_back( val_tmp );
+                  spline_val_xi.push_back( u[i][j].Xi );
+                  spline_val_eta.push_back( u[i][j].Eta );
+                }
+              }
+              val_tmp = b2 ; i = sizeY - 1 ;
+              spline_arg.push_back( val_tmp );
+              spline_val_xi.push_back( u[i][j].Xi );
+              spline_val_eta.push_back( u[i][j].Eta );
+
+              spline_xi.set_points( spline_arg , spline_val_xi );
+              spline_eta.set_points( spline_arg , spline_val_eta );
+
+              for (int i = 1 ; i < sizeY - 1 ; ++i )
+              {
+                if( flag[i][j] != 1)
+                {
+                  val_tmp = a2 + i * sizeofintervalY ;
+                  u[i][j].Xi = spline_xi( val_tmp );
+                  u[i][j].Eta = spline_eta( val_tmp );
+                }
+              }
             }
         }
     }
